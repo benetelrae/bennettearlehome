@@ -476,6 +476,14 @@ ul[role="list"] { list-style: none; }
   text-align: center;
 }
 .site-footer__text { font-size: var(--text-sm); color: var(--color-text-muted); }
+.site-footer__legal {
+  font-size: var(--text-xs);
+  max-width: 60ch;
+  margin: var(--space-3) auto 0;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
 .footer-link { color: var(--color-link); }
 
 /* ============================================================
