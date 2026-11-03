@@ -64,18 +64,105 @@
       </div>
 
       <div class="hero__visual" aria-hidden="true">
-        <div class="hero__grid-art">
-          <div class="grid-cell grid-cell--1"></div>
-          <div class="grid-cell grid-cell--2"></div>
-          <div class="grid-cell grid-cell--3"></div>
-          <div class="grid-cell grid-cell--4"></div>
-          <div class="grid-cell grid-cell--5"></div>
-          <div class="grid-cell grid-cell--6"></div>
-          <div class="grid-cell grid-cell--7"></div>
-          <div class="grid-cell grid-cell--8"></div>
-          <div class="grid-cell grid-cell--9"></div>
-        </div>
+        <svg class="hero__contours" id="heroContours" viewBox="0 0 400 400" role="presentation"
+             style="display:block;width:100%;max-width:480px;height:auto;margin:0 auto;overflow:visible">
+          <g id="hcRings" fill="none" stroke-linejoin="round" stroke-linecap="round"></g>
+          <g id="hcPark" fill="none" stroke-linecap="round" style="opacity:0"></g>
+          <circle id="hcBall" r="3.2" fill="#f4f1ea" style="opacity:0"></circle>
+        </svg>
       </div>
+      <script>
+      /* Hero: topo contours → Fenway Park (top-down) → back to terrain. No libraries. */
+      (() => {
+        const svg = document.getElementById("heroContours");
+        if (!svg) return;
+        const NS = "http://www.w3.org/2000/svg";
+        const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4fc3f7";
+        const M = 160, RINGS = 7, HOME = [200, 352], FT = 0.68;           // points per ring, ring count, home plate, px per foot
+        const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        // ── Fenway, stylised from published fence distances (feet from home plate) ──
+        //   angle 0 = straight away to centre field; −45 = left-field line, +45 = right-field line
+        const WALL = [[-45, 310], [-38, 318], [-28, 335], [-17, 379], [-8, 386], [0, 390], [8, 420], [14, 410], [22, 380], [30, 365], [38, 330], [45, 302]];
+        const P = (ang, ft) => [HOME[0] + Math.sin(ang * Math.PI / 180) * ft * FT, HOME[1] - Math.cos(ang * Math.PI / 180) * ft * FT];
+        const wallPts = (k = 1) => [HOME, ...WALL.map(([a, f]) => P(a, f * k))];
+        const arc = (a0, a1, ft, n = 24) => Array.from({ length: n + 1 }, (_, i) => P(a0 + (a1 - a0) * i / n, ft));
+        const bases = [HOME, P(45, 90), P(0, 127.3), P(-45, 90)];              // 90 ft square
+        const mound = Array.from({ length: 24 }, (_, i) => { const t = i / 24 * 2 * Math.PI, c = P(0, 60.5); return [c[0] + Math.cos(t) * 9 * FT, c[1] + Math.sin(t) * 9 * FT]; });
+        const dirt = [HOME, P(45, 95), ...arc(45, -45, 155).slice(1, -1), P(-45, 95)];
+        const targets = [mound, bases, dirt, wallPts(0.9), wallPts(1), wallPts(1.06), wallPts(1.13)];   // inner → outer ring
+
+        // ── helpers ──
+        const area = pts => pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+        function resample(pts, n) {                                  // even spacing along a closed outline, starting nearest home, clockwise
+          let poly = area(pts) < 0 ? pts.slice().reverse() : pts.slice();
+          let s = 0, best = 0;
+          poly.forEach((p, i) => { const d = Math.hypot(p[0] - HOME[0], p[1] - HOME[1] - 40); if (i === 0 || d < s) { s = d; best = i; } });
+          poly = poly.slice(best).concat(poly.slice(0, best));
+          const segs = poly.map((p, i) => { const q = poly[(i + 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
+          const total = segs.reduce((a, b) => a + b, 0), out = [];
+          for (let k = 0, i = 0, acc = 0; k < n; k++) {
+            const want = total * k / n;
+            while (acc + segs[i] < want) { acc += segs[i]; i++; }
+            const t = (want - acc) / (segs[i] || 1), p = poly[i], q = poly[(i + 1) % poly.length];
+            out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+          }
+          return out;
+        }
+        const T = targets.map(t => resample(t, M));
+        const C = [200, 214];                                        // terrain summit
+        const base = [Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3];
+        const ph = Array.from({ length: RINGS }, (_, k) => base.map((b, j) => b + k * (0.18 + 0.07 * j)));   // nearly shared phases → rings nest like real contours
+        function contour(k, time) {                                  // a wobbly closed ring, like a hill's contour line
+          const r0 = 16 + k * 25, out = [];
+          for (let i = 0; i < M; i++) {
+            const th = Math.PI / 2 + (i / M) * 2 * Math.PI;           // start at the bottom (toward home), same direction as targets
+            const w = 1 + 0.11 * Math.sin(2 * th + ph[k][0] + time * 0.21) + 0.06 * Math.sin(3 * th + ph[k][1] - time * 0.17) + (0.03 + 0.012 * k) * Math.sin(5 * th + ph[k][2] + time * 0.3);
+            out.push([C[0] + Math.cos(th) * r0 * w * 1.12, C[1] + Math.sin(th) * r0 * w * 0.92]);
+          }
+          return area(out) < 0 ? out.reverse() : out;
+        }
+        const d = pts => "M" + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L") + "Z";
+        const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        // ── build ──
+        const ringG = document.getElementById("hcRings"), parkG = document.getElementById("hcPark"), ball = document.getElementById("hcBall");
+        const rings = Array.from({ length: RINGS }, (_, k) => {
+          const el = document.createElementNS(NS, "path");
+          el.setAttribute("stroke", accent); el.setAttribute("stroke-width", k === 4 ? 2 : 1.3);
+          el.setAttribute("opacity", (0.25 + 0.6 * (1 - k / RINGS)).toFixed(2));
+          ringG.appendChild(el); return el;
+        });
+        const line = (pts, stroke, w, extra = "") => { const el = document.createElementNS(NS, "path"); el.setAttribute("d", "M" + pts.map(p => p.join(" ")).join("L")); el.setAttribute("stroke", stroke); el.setAttribute("stroke-width", w); if (extra) el.setAttribute("stroke-dasharray", extra); parkG.appendChild(el); return el; };
+        // detail that only appears once the park has formed
+        line([P(-45, 310), P(-38, 318), P(-28, 335), P(-17, 379)], "#3fae6a", 5);                 // the Green Monster
+        line([HOME, P(-45, 310)], "#f4f1ea", 1.2); line([HOME, P(45, 302)], "#f4f1ea", 1.2);        // foul lines
+        [bases[1], bases[2], bases[3]].forEach(b => { const el = document.createElementNS(NS, "rect"); el.setAttribute("x", b[0] - 2.6); el.setAttribute("y", b[1] - 2.6); el.setAttribute("width", 5.2); el.setAttribute("height", 5.2); el.setAttribute("fill", "#f4f1ea"); el.setAttribute("transform", `rotate(45 ${b[0]} ${b[1]})`); parkG.appendChild(el); });
+        const plate = document.createElementNS(NS, "path"); plate.setAttribute("d", `M${HOME[0] - 3} ${HOME[1] - 3}h6v3l-3 3-3-3z`); plate.setAttribute("fill", "#f4f1ea"); parkG.appendChild(plate);
+        const pesky = document.createElementNS(NS, "circle"); const pk = P(45, 302); pesky.setAttribute("cx", pk[0]); pesky.setAttribute("cy", pk[1]); pesky.setAttribute("r", 2.6); pesky.setAttribute("fill", "#e8b322"); parkG.appendChild(pesky);   // Pesky's Pole
+        const wallMid = P(-24, 350);                                                                 // where the ball goes: over the Monster
+        // ── timeline (seconds) ──
+        const LOOP = 15, IN = [4, 6.6], HOLD = 10.2, OUT = [10.2, 12.4];
+        function frame(ms) {
+          const s = ms / 1000, t = s % LOOP;
+          const m = t < IN[0] ? 0 : t < IN[1] ? ease((t - IN[0]) / (IN[1] - IN[0])) : t < OUT[0] ? 1 : t < OUT[1] ? 1 - ease((t - OUT[0]) / (OUT[1] - OUT[0])) : 0;
+          for (let k = 0; k < RINGS; k++) {
+            const a = contour(k, s), b = T[k];
+            rings[k].setAttribute("d", d(a.map((p, i) => [p[0] + (b[i][0] - p[0]) * m, p[1] + (b[i][1] - p[1]) * m])));
+          }
+          const detail = t < IN[1] - .3 ? 0 : t < IN[1] + .6 ? (t - IN[1] + .3) / .9 : t < OUT[0] ? 1 : t < OUT[0] + .6 ? 1 - (t - OUT[0]) / .6 : 0;
+          parkG.style.opacity = detail.toFixed(3);
+          // a fly ball from home over the Monster, mid-hold
+          const f = (t - 7.6) / 1.6;
+          if (f > 0 && f < 1) {
+            const x = HOME[0] + (wallMid[0] - HOME[0]) * f, y = HOME[1] + (wallMid[1] - HOME[1]) * f - Math.sin(Math.PI * f) * 46;
+            ball.setAttribute("cx", x.toFixed(1)); ball.setAttribute("cy", y.toFixed(1)); ball.style.opacity = (f < .85 ? 1 : (1 - f) / .15).toFixed(2);
+          } else ball.style.opacity = 0;
+          if (!reduce) requestAnimationFrame(frame);
+        }
+        if (reduce) { frame(8000); } else requestAnimationFrame(frame);
+      })();
+      </script>
     </section>
 
       <!-- Logo marquee -->
@@ -263,7 +350,7 @@
         </article>
 
         <!-- 6 · ENVIRONMENTAL -->
-        <article class="project project--featured" aria-labelledby="project-6-title">
+        <article class="project" aria-labelledby="project-6-title">
           <div class="project__image project__image--gradient-4" aria-hidden="true">
             <div class="project__image-placeholder"><span><img src="images/expsasaki4.png" alt=""></span></div>
           </div>
@@ -409,7 +496,7 @@
             <p class="timeline-company">ARKANCE USA (formerly CADD Microsystems) · Portland, ME</p>
             <ul class="timeline-bullets">
               <li>Technology assessment and software implementation for civil engineering firms and public agencies.</li>
-              <li>Three years of Civil 3D training across USACE districts, including onsite at the Community of Practice; about 500 USACE students, and helped districts move from OpenRoads/MicroStation to Autodesk.</li>
+              <li>Three years of Civil 3D training across USACE districts, including onsite at the Center of Practice; about 500 USACE students, and helped districts move from OpenRoads/MicroStation to Autodesk.</li>
               <li>Training for other federal clients, including USAF, IRS, and AOC: 700+ federal staff in total.</li>
               <li>Civil 3D and AutoCAD version rollouts; built course content including Civil 3D Essentials, Civil 3D Survey Essentials, and AutoCAD for Civil 3D Users.</li>
               <li>Product engineering on the Standardized Data Tool.</li>
