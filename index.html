@@ -170,8 +170,8 @@
         // the red seat: Ted Williams' 502-ft home run (1946), section 42, row 37, seat 21 in the right-field bleachers
         const RS = P(24, 502);
         const trail = el("path", { d: `M${HOME.join(" ")}Q${P(20, 300)[0]} ${P(20, 300)[1] - 60} ${RS.join(" ")}`, stroke: "#c8102e", "stroke-width": 1.2, "stroke-dasharray": "3 4", opacity: 0 }, parkG);
-        el("rect", { x: RS[0] - 3.5, y: RS[1] - 3.5, width: 7, height: 7, rx: 1.5, fill: "#c8102e", stroke: "#f4f1ea", "stroke-width": 1 }, parkG);
-        el("text", { x: RS[0] - 8, y: RS[1] + 3, "text-anchor": "end", fill: "#ffd6dc", stroke: "#0b1220", "stroke-width": 3, "paint-order": "stroke", "font-size": 8.5, "font-weight": 700 }, parkG).textContent = "502 · TEDDY BALLGAME'S SEAT";
+        el("title", {}, el("rect", { x: RS[0] - 3.5, y: RS[1] - 3.5, width: 7, height: 7, rx: 1.5, fill: "#c8102e", stroke: "#f4f1ea", "stroke-width": 1, style: "pointer-events:all" }, parkG)).textContent = "Teddy Ballgame's seat: 502 ft, June 9, 1946";
+        // no callout; hover the seat for a tooltip
         const wallMid = P(-24, 350);
 
         // drafting chrome: north arrow + scale bar (100 ft at this scale = 70 units)
