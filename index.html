@@ -10,6 +10,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Mulish:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Show the ballpark on phones too: style.css hides the old square grid on small screens */
+    @media (max-width: 900px) {
+      .hero__visual { display: block !important; visibility: visible !important; opacity: 1 !important;
+                      width: 100%; max-width: 380px; margin: 28px auto 0; order: 2; }
+      .hero__contours { max-width: 100% !important; }
+    }
+  </style>
 </head>
 
 <body>
