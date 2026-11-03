@@ -213,6 +213,50 @@
           if (!reduce) requestAnimationFrame(frame);
         }
         reduce ? frame(9500) : requestAnimationFrame(frame);
+
+        // ── easter egg: tap home plate 10 times and the contours flood the whole page ──
+        const plateHit = el("circle", { cx: HOME[0], cy: HOME[1], r: 16, fill: "#000", "fill-opacity": 0, "pointer-events": "all", style: "cursor:pointer" }, svg);
+        const tally = el("text", { x: HOME[0], y: HOME[1] + 26, "text-anchor": "middle", fill: "#e9f4fb", "font-size": 11, "font-weight": 800, opacity: 0, stroke: "#0b1220", "stroke-width": 3, "paint-order": "stroke" }, svg);
+        let taps = 0, tapTimer = 0, flooding = false;
+        plateHit.addEventListener("click", e => {
+          e.preventDefault();
+          if (flooding) return;
+          taps++; clearTimeout(tapTimer); tapTimer = setTimeout(() => { taps = 0; tally.setAttribute("opacity", 0); }, 4000);
+          tally.textContent = taps >= 7 ? `${taps}…` : `${taps}`;
+          tally.setAttribute("opacity", 0.95);
+          if (taps >= 10) { taps = 0; tally.textContent = "⚾"; flood(); setTimeout(() => tally.setAttribute("opacity", 0), 1200); }
+        });
+        function flood() {
+          flooding = true;
+          const r = svg.getBoundingClientRect(), cx = r.left + HOME[0] / 420 * r.width, cy = r.top + HOME[1] / 420 * r.height;
+          const cv = document.createElement("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1);
+          Object.assign(cv.style, { position: "fixed", inset: "0", width: "100vw", height: "100vh", pointerEvents: "none", zIndex: 9999, mixBlendMode: "screen" });
+          cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; document.body.appendChild(cv);
+          const g = cv.getContext("2d"); g.scale(dpr, dpr);
+          const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)) + 80;
+          const GAP = 34, SPEED = reduce ? 0 : 260, START = performance.now(), GROW = 3.2, HOLD = 2.2, FADE = 1.6;
+          const ph2 = [Math.random() * 6.3, Math.random() * 6.3];
+          (function draw(now) {
+            const t = (now - START) / 1000;
+            g.clearRect(0, 0, innerWidth, innerHeight);
+            const alpha = t < GROW + HOLD ? 1 : Math.max(0, 1 - (t - GROW - HOLD) / FADE);
+            const reach = reduce ? far : Math.min(far, t * SPEED * 1.4);
+            for (let k = 0, rad; (rad = k * GAP + (SPEED * t) % GAP) < reach; k++) {
+              const shade = k / (far / GAP);
+              g.strokeStyle = `rgba(${Math.round(92 - 40 * shade)},${Math.round(198 - 60 * shade)},242,${(0.55 * alpha * (1 - shade * 0.5)).toFixed(3)})`;
+              g.lineWidth = k % 5 === 0 ? 2.2 : 1.1;                         // every fifth line heavier, like an index contour
+              g.beginPath();
+              for (let i = 0; i <= 120; i++) {
+                const th = i / 120 * Math.PI * 2;
+                const w = 1 + 0.07 * Math.sin(2 * th + ph2[0] + t * 0.6 + k * 0.15) + 0.04 * Math.sin(3 * th + ph2[1] - t * 0.4 + k * 0.1);
+                const x = cx + Math.cos(th) * rad * w * 1.1, y = cy + Math.sin(th) * rad * w * 0.9;
+                i ? g.lineTo(x, y) : g.moveTo(x, y);
+              }
+              g.stroke();
+            }
+            if (alpha > 0) requestAnimationFrame(draw); else { cv.remove(); flooding = false; }
+          })(START);
+        }
       })();
       </script>
     </section>
