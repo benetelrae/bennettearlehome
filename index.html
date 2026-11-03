@@ -98,7 +98,10 @@
         const bases = [HOME, P(45, 90), P(0, 127.3), P(-45, 90)];
         const mc = P(0, 60.5), mound = Array.from({ length: 28 }, (_, i) => { const t = i / 28 * 2 * Math.PI; return [mc[0] + Math.cos(t) * 9 * FT, mc[1] + Math.sin(t) * 9 * FT]; });
         const dirt = [HOME, P(45, 95), ...arc(45, -45, 155).slice(1, -1), P(-45, 95)];
-        const targets = [mound, bases, dirt, wallPts(0.93), wallPts(1), wallPts(1.07), wallPts(1.15)];
+        const wallAt = a => { for (let i = 1; i < WALL.length; i++) if (a <= WALL[i][0]) { const [a0, f0] = WALL[i - 1], [a1, f1] = WALL[i]; return f0 + (f1 - f0) * (a - a0) / (a1 - a0); } return WALL[WALL.length - 1][1]; };
+        const bleachers = [HOME, ...Array.from({ length: 31 }, (_, i) => { const a = -45 + i * 3, f = wallAt(a) * 1.15;   // right-field bleachers swell out past the red seat
+          return P(a, f + Math.max(0, 528 - f) * Math.exp(-(((a - 22) / 10) ** 2))); })];
+        const targets = [mound, bases, dirt, wallPts(0.93), wallPts(1), wallPts(1.07), bleachers];
 
         const area = pts => pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
         function resample(pts, n) {
@@ -147,14 +150,27 @@
         el("path", { d: `M${HOME.join(" ")}L${P(-45, 318).join(" ")}M${HOME.join(" ")}L${P(45, 309).join(" ")}`, stroke: "#f4f1ea", "stroke-width": 1.3 }, parkG);
         bases.slice(1).forEach(b => el("rect", { x: b[0] - 2.8, y: b[1] - 2.8, width: 5.6, height: 5.6, fill: "#f4f1ea", transform: `rotate(45 ${b[0]} ${b[1]})` }, parkG));
         el("path", { d: `M${HOME[0] - 3} ${HOME[1] - 3}h6v3l-3 3-3-3z`, fill: "#f4f1ea" }, parkG);
-        const pk = P(45, 302); el("circle", { cx: pk[0], cy: pk[1], r: 2.8, fill: "#e8b322" }, parkG);
+        // foul poles: Fisk Pole (left, 310 ft) and Pesky's Pole (right, 302 ft)
+        const SH = [Math.sin(40 * Math.PI / 180), -Math.cos(40 * Math.PI / 180)];         // shadow direction: true NE, drawn up-right
+        [[-45, 310], [45, 302]].forEach(([a, f]) => { const p0 = P(a, f), p1 = P(a, f + 14);
+          el("path", { d: `M${p0.join(" ")}l${(SH[0] * 30).toFixed(1)} ${(SH[1] * 30).toFixed(1)}`, stroke: "#05080f", "stroke-width": 3.2, "stroke-opacity": .55 }, parkG);
+          el("ellipse", { cx: p0[0], cy: p0[1], rx: 4, ry: 2.4, fill: "#05080f", "fill-opacity": .45 }, parkG);
+          el("path", { d: `M${p0.join(" ")}L${p1.join(" ")}`, stroke: "#f2c230", "stroke-width": 2.4 }, parkG);
+          el("circle", { cx: p1[0], cy: p1[1], r: 2.6, fill: "#f2c230" }, parkG); });
         const dist = (a, f, txt, dy = -8) => { const p = P(a, f); el("text", { x: p[0], y: p[1] + dy, "text-anchor": "middle", fill: "#e9f4fb", stroke: "#0b1220", "stroke-width": 3, "paint-order": "stroke", "font-size": 9, "font-weight": 700, "letter-spacing": ".04em" }, parkG).textContent = txt; };
-        dist(-45, 310, "310", -10); dist(8, 420, "420", -10); dist(45, 302, "302", -10); dist(-27, 330, "THE MONSTER", 18);
+        dist(-45, 330, "310 · FISK POLE", -8); dist(8, 420, "420", -10); dist(45, 322, "PESKY'S POLE · 302", -8); dist(-27, 330, "THE MONSTER", 18);
+        // the red seat: Ted Williams' 502-ft home run (1946), section 42, row 37, seat 21 in the right-field bleachers
+        const RS = P(24, 502);
+        const trail = el("path", { d: `M${HOME.join(" ")}Q${P(20, 300)[0]} ${P(20, 300)[1] - 60} ${RS.join(" ")}`, stroke: "#c8102e", "stroke-width": 1.2, "stroke-dasharray": "3 4", opacity: 0 }, parkG);
+        el("rect", { x: RS[0] - 3.5, y: RS[1] - 3.5, width: 7, height: 7, rx: 1.5, fill: "#c8102e", stroke: "#f4f1ea", "stroke-width": 1 }, parkG);
+        el("text", { x: RS[0] - 8, y: RS[1] + 3, "text-anchor": "end", fill: "#ffd6dc", stroke: "#0b1220", "stroke-width": 3, "paint-order": "stroke", "font-size": 8.5, "font-weight": 700 }, parkG).textContent = "502 · TED'S RED SEAT";
         const wallMid = P(-24, 350);
 
         // drafting chrome: north arrow + scale bar (100 ft at this scale = 70 units)
-        el("path", { d: "M392 30l6 16-6-4-6 4z", stroke: "none" }, chrome);
-        el("text", { x: 392, y: 26, "text-anchor": "middle", stroke: "none" }, chrome).textContent = "N";
+        // north arrow (bottom right): Fenway's centre field points roughly northeast, so true north is ~50° left of "up"
+        const na = el("g", { transform: "rotate(-50 396 392)" }, chrome);
+        el("path", { d: "M396 380l6 16-6-4-6 4z", stroke: "none" }, na);
+        el("text", { x: 396 - Math.sin(50 * Math.PI / 180) * 20, y: 392 - Math.cos(50 * Math.PI / 180) * 20 + 3, "text-anchor": "middle", stroke: "none" }, chrome).textContent = "N";
         el("path", { d: "M18 404h70M18 400v8M53 402v4M88 400v8", "stroke-width": 1, fill: "none" }, chrome);
         el("text", { x: 18, y: 396, "text-anchor": "middle", stroke: "none" }, chrome).textContent = "0";
         el("text", { x: 88, y: 396, "text-anchor": "middle", stroke: "none" }, chrome).textContent = "100 FT";
@@ -179,9 +195,11 @@
           }
           const detail = t < IN[1] - .4 ? 0 : t < IN[1] + .6 ? (t - IN[1] + .4) : t < OUT[0] ? 1 : t < OUT[0] + .6 ? 1 - (t - OUT[0]) / .6 : 0;
           parkG.style.opacity = Math.min(1, detail).toFixed(3);
-          const f = (t - 8.2) / 1.7;                                          // fly ball over the Monster
+          const ted = Math.floor(s / LOOP) % 2 === 1;                          // every other loop: Ted's 502-footer
+          const dest = ted ? RS : wallMid, f = (t - 8.2) / (ted ? 2.2 : 1.7);
+          trail.setAttribute("opacity", ted && f > 0 ? Math.min(.9, f * 1.4).toFixed(2) : 0);
           if (f > 0 && f < 1) {
-            const x = HOME[0] + (wallMid[0] - HOME[0]) * f, y = HOME[1] + (wallMid[1] - HOME[1]) * f - Math.sin(Math.PI * f) * 52;
+            const x = HOME[0] + (dest[0] - HOME[0]) * f, y = HOME[1] + (dest[1] - HOME[1]) * f - Math.sin(Math.PI * f) * (ted ? 120 : 52);
             ball.setAttribute("cx", x.toFixed(1)); ball.setAttribute("cy", y.toFixed(1)); ball.style.opacity = (f < .85 ? 1 : (1 - f) / .15).toFixed(2);
           } else ball.style.opacity = 0;
           if (!reduce) requestAnimationFrame(frame);
