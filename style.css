@@ -490,9 +490,11 @@ ul[role="list"] { list-style: none; }
    MARQUEE
    ============================================================ */
 .marquee-section {
-  /* top gap = bottom gap (logos sit in a 56px box with 32px images, so add 12px optical offset) */
-  padding: calc(var(--space-12) + 4px) 0 var(--space-12);
+  /* label is centered between the top border and the logo divider (24px each side);
+     logos are centered between the divider and the bottom border (24px each side) */
+  padding: var(--space-6) 0;
   background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   overflow: hidden;
 }
