@@ -2,17 +2,6 @@
   ============================================================================
   PORTFOLIO STYLESHEET — Bennett Earle
   ============================================================================
-  Design language: bold, high contrast, editorial.
-  Syne (geometric, blocky) for display text.
-  Mulish (humanist, readable) for body.
-
-  Techniques:
-    - CSS Grid masonry approximation for projects
-    - CSS custom property animation (the grid art in hero)
-    - :has() for smart parent targeting
-    - CSS clip-path for the skill bar fill animation
-    - scroll-driven animations using @keyframes + JS IntersectionObserver fallback
-  ============================================================================
 */
 
 :root {
